@@ -163,6 +163,17 @@ let activeFilters = {
   coffee: [],
   purpose: []
 };
+let searchQuery = "";
+
+// Escape user-provided text before inserting it via innerHTML
+function escapeHtml(str) {
+  return String(str ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
 
 // Initialize App
 document.addEventListener("DOMContentLoaded", () => {
@@ -216,6 +227,12 @@ function renderPins() {
     if (activeFilters.purpose.length > 0) {
       const match = activeFilters.purpose.some(tag => cafe.tags.includes(tag));
       if (!match) return false;
+    }
+    // Check search query (name or tag)
+    if (searchQuery) {
+      const matchesName = cafe.name.toLowerCase().includes(searchQuery);
+      const matchesTag = cafe.tags.some(tag => tag.toLowerCase().includes(searchQuery));
+      if (!matchesName && !matchesTag) return false;
     }
     return true;
   });
@@ -281,17 +298,14 @@ function setupEventListeners() {
   const clearSearchBtn = document.getElementById("clear-search");
 
   searchInput.addEventListener("input", (e) => {
-    const query = e.target.value.toLowerCase().trim();
-    if (query.length > 0) {
-      clearSearchBtn.style.display = "block";
-    } else {
-      clearSearchBtn.style.display = "none";
-    }
-    filterPinsByName(query);
+    searchQuery = e.target.value.toLowerCase().trim();
+    clearSearchBtn.style.display = searchQuery.length > 0 ? "block" : "none";
+    renderPins();
   });
 
   clearSearchBtn.addEventListener("click", () => {
     searchInput.value = "";
+    searchQuery = "";
     clearSearchBtn.style.display = "none";
     renderPins();
   });
@@ -400,11 +414,11 @@ function setupEventListeners() {
 
     currentCafe.reviews.unshift(newReview);
 
-    // Update cafe statistics
+    // Update cafe statistics: fold the new rating into the running average
+    // (reviews[] only holds a sample, so it can't be used to recompute the mean)
+    const totalStars = currentCafe.rating * currentCafe.reviewCount + selectedRating;
     currentCafe.reviewCount += 1;
-    // Calculate new average rating
-    const totalStars = currentCafe.reviews.reduce((acc, curr) => acc + curr.stars, 0);
-    currentCafe.rating = parseFloat((totalStars / currentCafe.reviews.length).toFixed(1));
+    currentCafe.rating = parseFloat((totalStars / currentCafe.reviewCount).toFixed(1));
 
     // Dynamic adjustment of Cafe DNA based on tags & rating
     selectedWriteTags.forEach(tag => {
@@ -477,26 +491,6 @@ function setupEventListeners() {
     
     // Refresh Detail UI
     loadCafeDetail(currentCafe.id);
-  });
-}
-
-// Dynamic Filter Map Pins by text
-function filterPinsByName(query) {
-  const mapCanvas = document.getElementById("map-canvas");
-  const pins = mapCanvas.querySelectorAll(".map-pin");
-
-  pins.forEach(pin => {
-    const id = pin.getAttribute("data-id");
-    const cafe = cafes.find(c => c.id === id);
-    
-    const matchesName = cafe.name.toLowerCase().includes(query);
-    const matchesTag = cafe.tags.some(tag => tag.toLowerCase().includes(query));
-
-    if (matchesName || matchesTag) {
-      pin.style.display = "flex";
-    } else {
-      pin.style.display = "none";
-    }
   });
 }
 
@@ -613,7 +607,7 @@ function loadCafeDetail(cafeId) {
           <i data-lucide="megaphone" style="width: 14px; height: 14px;"></i> 매장 공지사항
         </span>
       </div>
-      <p class="review-text" style="color: var(--color-text-light); font-weight: 500;">${cafe.notice}</p>
+      <p class="review-text" style="color: var(--color-text-light); font-weight: 500;">${escapeHtml(cafe.notice)}</p>
     `;
     reviewsList.appendChild(noticeCard);
   }
@@ -637,7 +631,7 @@ function loadCafeDetail(cafeId) {
       if (review.tags && review.tags.length > 0) {
         tagsHtml = `
           <div class="review-tags">
-            ${review.tags.map(t => `<span class="review-tag">${t}</span>`).join("")}
+            ${review.tags.map(t => `<span class="review-tag">${escapeHtml(t)}</span>`).join("")}
           </div>
         `;
       }
@@ -647,18 +641,18 @@ function loadCafeDetail(cafeId) {
         replyHtml = `
           <div class="owner-reply-box">
             <div class="owner-reply-header"><i data-lucide="corner-down-right" style="width: 12px; height: 12px; display: inline-block; vertical-align: middle;"></i> 사장님 답변</div>
-            <p class="owner-reply-text">${review.reply}</p>
+            <p class="owner-reply-text">${escapeHtml(review.reply)}</p>
           </div>
         `;
       }
 
       card.innerHTML = `
         <div class="review-user-row">
-          <span class="review-user">${review.user}</span>
-          <span class="review-date">${review.date}</span>
+          <span class="review-user">${escapeHtml(review.user)}</span>
+          <span class="review-date">${escapeHtml(review.date)}</span>
         </div>
         <div class="review-stars">${starsHtml}</div>
-        <p class="review-text">${review.text}</p>
+        <p class="review-text">${escapeHtml(review.text)}</p>
         ${tagsHtml}
         ${replyHtml}
       `;
@@ -695,7 +689,7 @@ function renderMySpotList() {
     
     card.innerHTML = `
       <div class="my-spot-info">
-        <span class="my-spot-name">${cafe.name}</span>
+        <span class="my-spot-name">${escapeHtml(cafe.name)}</span>
         <span class="my-spot-rating">
           <i data-lucide="star" style="width:12px; height:12px; fill:var(--color-accent-gold); color:var(--color-accent-gold)"></i>
           ${cafe.rating} (${cafe.reviewCount})
