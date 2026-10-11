@@ -1,0 +1,17 @@
+# OS
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# Editor
+.vscode/
+.idea/
+
+# Env / secrets
+.env
+.env.*
+
+# Dependencies (for future React Native / Expo work)
+node_modules/
+.expo/
+dist/
