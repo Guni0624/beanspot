@@ -21,6 +21,11 @@ jobs:
           KAKAO_REFRESH_TOKEN: ${{ secrets.KAKAO_REFRESH_TOKEN }}
           NEW_REFRESH_TOKEN_FILE: ${{ runner.temp }}/new_refresh_token
         run: node scripts/daily-report.js todo
+      - name: Check GH_PAT can access repo secrets (manual runs only)
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT }}
+        run: gh secret list --repo "$GITHUB_REPOSITORY" > /dev/null && echo "GH_PAT OK"
       - name: Save rotated Kakao refresh token
         if: always()
         env:
