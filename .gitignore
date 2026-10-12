@@ -18,3 +18,6 @@ dist/
 
 # Test output
 tests/screenshot.png
+
+# Kakao OAuth tokens
+.kakao-tokens.json
