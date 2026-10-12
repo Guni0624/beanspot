@@ -1,0 +1,34 @@
+# 일과 끝 보고: a new/updated journal in 업무일지/ is pushed → send KakaoTalk report
+name: 일과 끝 보고
+
+on:
+  push:
+    branches: [main]
+    paths: ["업무일지/20*.txt"]
+  workflow_dispatch:
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Send report
+        env:
+          KAKAO_REST_API_KEY: ${{ secrets.KAKAO_REST_API_KEY }}
+          KAKAO_CLIENT_SECRET: ${{ secrets.KAKAO_CLIENT_SECRET }}
+          KAKAO_REFRESH_TOKEN: ${{ secrets.KAKAO_REFRESH_TOKEN }}
+          NEW_REFRESH_TOKEN_FILE: ${{ runner.temp }}/new_refresh_token
+        run: node scripts/daily-report.js report
+      - name: Save rotated Kakao refresh token
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT }}
+          TOKEN_FILE: ${{ runner.temp }}/new_refresh_token
+        run: |
+          if [ -s "$TOKEN_FILE" ]; then
+            gh secret set KAKAO_REFRESH_TOKEN --repo "$GITHUB_REPOSITORY" < "$TOKEN_FILE"
+            echo "KAKAO_REFRESH_TOKEN updated"
+          fi

@@ -1,0 +1,33 @@
+# 오늘 할 일 알림: weekdays 17:00 KST (08:00 UTC), holidays included, no weekends
+name: 오늘 할 일 알림
+
+on:
+  schedule:
+    - cron: "0 8 * * 1-5"
+  workflow_dispatch:
+
+jobs:
+  todo:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Send today's tasks
+        env:
+          KAKAO_REST_API_KEY: ${{ secrets.KAKAO_REST_API_KEY }}
+          KAKAO_CLIENT_SECRET: ${{ secrets.KAKAO_CLIENT_SECRET }}
+          KAKAO_REFRESH_TOKEN: ${{ secrets.KAKAO_REFRESH_TOKEN }}
+          NEW_REFRESH_TOKEN_FILE: ${{ runner.temp }}/new_refresh_token
+        run: node scripts/daily-report.js todo
+      - name: Save rotated Kakao refresh token
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT }}
+          TOKEN_FILE: ${{ runner.temp }}/new_refresh_token
+        run: |
+          if [ -s "$TOKEN_FILE" ]; then
+            gh secret set KAKAO_REFRESH_TOKEN --repo "$GITHUB_REPOSITORY" < "$TOKEN_FILE"
+            echo "KAKAO_REFRESH_TOKEN updated"
+          fi
