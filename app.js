@@ -156,6 +156,7 @@ const INITIAL_CAFES = [
 let cafes = [];
 let currentCafe = null;
 let activeScreen = "screen-map";
+let detailReturnScreen = "screen-map"; // tab screen the detail view was opened from
 let mySpotTab = "visited"; // 'visited' or 'favorites'
 let selectedRating = 0;
 let selectedWriteTags = [];
@@ -283,10 +284,10 @@ function setupEventListeners() {
 
   // Back buttons
   document.getElementById("detail-back-btn").addEventListener("click", () => {
-    switchScreen("screen-map");
+    switchScreen(detailReturnScreen);
     // Sync active tab
     document.querySelectorAll(".tab-item").forEach(t => t.classList.remove("active"));
-    document.querySelector('[data-target="screen-map"]').classList.add("active");
+    document.querySelector(`[data-target="${detailReturnScreen}"]`).classList.add("active");
   });
 
   document.getElementById("write-back-btn").addEventListener("click", () => {
@@ -362,17 +363,15 @@ function setupEventListeners() {
   });
 
   // Stars rating Selector
-  document.querySelectorAll(".write-star").forEach(star => {
-    star.addEventListener("click", () => {
-      selectedRating = parseInt(star.getAttribute("data-value"));
-      document.querySelectorAll(".write-star").forEach(s => {
-        const val = parseInt(s.getAttribute("data-value"));
-        if (val <= selectedRating) {
-          s.classList.add("filled");
-        } else {
-          s.classList.remove("filled");
-        }
-      });
+  // Delegated to the container: lucide.createIcons() replaces each <i> star
+  // with a new <svg>, which would drop listeners bound to the stars directly.
+  document.getElementById("rating-selector").addEventListener("click", (e) => {
+    const star = e.target.closest(".write-star");
+    if (!star) return;
+    selectedRating = parseInt(star.getAttribute("data-value"));
+    document.querySelectorAll(".write-star").forEach(s => {
+      const val = parseInt(s.getAttribute("data-value"));
+      s.classList.toggle("filled", val <= selectedRating);
     });
   });
 
@@ -529,6 +528,11 @@ function loadCafeDetail(cafeId) {
   if (!cafe) return;
 
   currentCafe = cafe;
+
+  // Remember which tab screen to go back to (ignore re-renders from detail/review)
+  if (["screen-map", "screen-my-spot", "screen-owner"].includes(activeScreen)) {
+    detailReturnScreen = activeScreen;
+  }
 
   // Set Cert Badges
   document.getElementById("header-cert-badge").style.display = cafe.isOfficial ? "flex" : "none";
