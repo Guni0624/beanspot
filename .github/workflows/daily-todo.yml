@@ -1,9 +1,9 @@
-# 오늘 할 일 알림: weekdays 17:00 KST (08:00 UTC), holidays included, no weekends
+# 오늘 할 일 알림: weekdays 17:04 KST (08:04 UTC, off the hour to avoid schedule delays), holidays included, no weekends
 name: 오늘 할 일 알림
 
 on:
   schedule:
-    - cron: "0 8 * * 1-5"
+    - cron: "4 8 * * 1-5"
   workflow_dispatch:
 
 jobs:
