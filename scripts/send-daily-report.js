@@ -49,34 +49,49 @@ function fail(message) {
 
   // 3) GitHub에 올리기 (아직 안 올라간 커밋이 있을 때만)
   const ahead = run('git rev-list --count origin/main..HEAD');
-  const sha = run('git rev-parse HEAD');
+  const head = run('git rev-parse HEAD');
+  let pushedNow = false;
   if (ahead !== '0') {
     try {
       run('git push -q origin main');
-      console.log(`올림: ${sha.slice(0, 7)}`);
+      pushedNow = true;
+      console.log(`올림: ${head.slice(0, 7)}`);
     } catch (e) {
       fail(`git push 실패: ${e.stderr?.toString() || e.message}`);
     }
   } else {
-    console.log(`이미 올라가 있음: ${sha.slice(0, 7)}`);
+    console.log(`이미 올라가 있음: ${head.slice(0, 7)}`);
   }
 
   // 4) GitHub Actions "일과 끝 보고"가 카톡을 보냈는지 확인 (최대 15분)
+  // 이 업무일지가 들어간 커밋(또는 그 뒤 커밋)으로 돌아간 실행을 찾아요.
+  const logCommit = run(`git log -1 --format=%H -- "${rel}"`);
+  const includesLog = (sha) => {
+    try {
+      execSync(`git merge-base --is-ancestor ${logCommit} ${sha}`, { cwd: ROOT, stdio: 'ignore' });
+      return true;
+    } catch {
+      return false;
+    }
+  };
   const deadline = Date.now() + 15 * 60 * 1000;
   while (Date.now() < deadline) {
     let runs = [];
     try {
-      runs = JSON.parse(run('gh run list --workflow daily-report.yml --limit 5 --json status,conclusion,headSha,databaseId'));
+      runs = JSON.parse(run('gh run list --workflow daily-report.yml --limit 20 --json status,conclusion,headSha,databaseId'));
     } catch {
       // gh가 잠깐 안 될 때는 다시 시도
     }
-    const mine = runs.find((r) => r.headSha === sha);
+    const mine = runs.find((r) => includesLog(r.headSha));
     if (mine && mine.status === 'completed') {
       if (mine.conclusion === 'success') {
-        console.log('RESULT: SUCCESS — 카톡 전송 성공');
+        console.log(`RESULT: SUCCESS — 카톡 전송 성공${pushedNow ? '' : ' (이미 보낸 기록 확인)'}`);
         process.exit(0);
       }
       fail(`카톡 보내기 실패 (gh run view ${mine.databaseId} --log-failed 로 원인 확인)`);
+    }
+    if (!mine && !pushedNow) {
+      fail('업무일지는 이미 올라가 있는데 카톡 보내기 기록을 못 찾았어요. GitHub Actions "일과 끝 보고"를 직접 실행해 주세요 (gh workflow run daily-report.yml).');
     }
     await sleep(30000);
   }
