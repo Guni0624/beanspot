@@ -1,5 +1,5 @@
 // Sends BeanSpot daily KakaoTalk messages based on 업무일지/YYYY-MM-DD.txt.
-//   node scripts/daily-report.js report [file]  → 일과 끝 보고 (오늘 한 일 / 수정·새로 만든 것 / 내일 할 일)
+//   node scripts/daily-report.js report [file]  → 일과 끝 보고 (오늘 한 일 / 내일 할 일만 카톡으로, 수정·새로 만든 것은 업무일지에만 — 구니 님 결정 2026-10-23)
 //   node scripts/daily-report.js todo           → 평일 17시 "오늘 할 일" (가장 최근 이전 일지의 [내일 할 일])
 //   add --dry-run to print messages instead of sending.
 // Token source: KAKAO_REFRESH_TOKEN env (GitHub Actions) or .kakao-tokens.json (local).
@@ -64,8 +64,6 @@ function buildReport(file) {
   const s = parseSections(fs.readFileSync(path.join(JOURNAL_DIR, file), "utf8"));
   return [
     ...chunk(`📋 BeanSpot ${label(date)} 업무 보고\n\n✅ 오늘 한 일`, s["카톡: 오늘 한 일"] || []),
-    ...chunk("🛠 수정한 것", s["카톡: 수정한 것"] || []),
-    ...chunk("✨ 새로 만든 것", s["카톡: 새로 만든 것"] || []),
     ...chunk("📌 내일 할 일", s["내일 할 일"] || []),
   ];
 }
